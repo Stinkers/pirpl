@@ -1,0 +1,125 @@
+h2 {
+	padding: 2px 0px 2px 20px;
+	margin: 0px;
+	background: #508;
+	color: #fff;
+	font-size: 1.7em;
+	font-weight: bold;
+}
+
+h3 {
+	padding: 2px 0px 4px 20px;
+	margin: 0px;
+	background: #508;
+	color: #ffd;
+	font-size: 1.5em;
+	font-weight: bold;
+	font-style: italic;
+}
+
+h4 {
+	margin: 4px 0px 0px 20px;
+	font-size: 1.8em ;
+	font-weight: bold;
+}
+
+.fill {
+	width: 100%;
+	height: 100%;
+	text-align: center;
+	display: block;
+}
+
+a.fill {
+	text-decoration: none;
+}
+
+a.fill:link,a.fill:visited,a.fill:active,a.fill:hover {
+	color: #150;
+}
+
+.controlbutton {
+	width: 60px;
+	height: 58px;
+	line-height: 60px;
+	background: #d8d8f0;
+	border: 1px solid #bbe;
+	display: inline-block;
+	margin: 4px 0px 8px 20px;
+}
+
+.controlbutton a img {
+	position: relative;
+	top: 5px;
+	left; 6px;
+}
+
+#pcontainer {
+	margin: 2px 20px 2px 20px;
+}
+
+#progress {
+	margin: 2px 0px 2px 0px;
+	padding: 0px;
+	width: 100%;
+}
+
+#starttime, #stoptime{
+	color: #448;
+	font-size: 20px;
+	position: relative;
+	margin: 0px;
+	padding: 0px 10px 0px 10px;
+}
+
+#starttime {
+	float: left;
+}
+#stoptime {
+	float: right;
+}
+
+#sliderbox {
+	padding: 0px;
+	margin: 0px;
+}
+
+@media (min-height: 300px) {
+	#pcontainer {
+		margin: 24px 20px 24px 20px;
+	}
+}
+
+@media (min-height: 250px) {
+	h2 {
+		padding: 6px 0px 6px 20px;
+	}
+	h3 {
+		padding: 6px 0px 10px 20px;
+	}
+	h4 {
+		margin: 10px 0px 0px 20px;
+	}
+}
+
+#slider{
+	width:100%;
+ 	height:25px;
+	border:1px solid #ddf;
+	background: #f4f4f4;
+	display: inline-block;
+}
+#sliderbar{
+	width:0%;
+	height:25px;
+	border-right: 1px solid #9ae;
+	background: #cce;
+}
+#slidertext {
+	color: #000000;
+	font-size: 20px;
+	text-align: center;
+	top: -25px;
+	position: relative;
+}
+

@@ -1,0 +1,155 @@
+<html>
+<!-- 
+  Template for pirpl track info.  Edit this to make it look prettier.  
+  The following strings are replaced with the relevant info:
+  
+  @@ARTIST_NAME@@
+  @@ALBUM_NAME@@
+  @@TRACK_NUMBER@@
+  @@TRACK_NAME@@
+  @@START_TIME@@         - Timestamp of the start time (local to pi)
+  @@TRACK_DURATION@@     - Track duration in seconds
+  @@TRACK_DURATION_TXT@@ - Track duration in MM:SS
+-->
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pirpl Track Info</title>
+<script src="load=@jquery@"></script>
+
+<script language="javascript">
+
+var control = new XMLHttpRequest();
+var skipId, shutdownId, mainTimeout;
+var active = [];
+active ["skip"] = false;
+active ["stop"] = false;
+var startTime = @@START_TIME@@;
+var trackDuration = @@TRACK_DURATION_S@@;
+
+// Was going to do this with jQuery, but it didn't work properly with
+// mobile phone sleeping through 2 songs.
+function start(){
+
+	drawslider(0);
+	synchronise();
+}
+
+function synchronise(){
+	// Synchronise clocks - force reload with Math.random shit.
+	$.getJSON("/query=@timenow@"+Math.random(), function (resp) {
+		var d = new Date();
+		var timeNow = d.getTime() / 1000;
+		var timeOffset = timeNow - resp.timenow;
+		console.log ("Pirpl server time offset: "+timeOffset);
+		mainTimeout = setInterval("updateTime(" + timeOffset + ")", 500);
+	});
+}
+
+function updateTime(timeOffset){
+	/* Get adjusted time */
+	var d = new Date();
+	var timeNow = d.getTime() / 1000;
+	timeNow -= timeOffset;
+	
+	progressTime = timeNow - startTime;
+	progress = (progressTime / trackDuration) * 100;
+	mm = Math.floor (progressTime / 60);
+	ss = ("00"+Math.floor (progressTime %60)).slice (-2);
+	progressmmss =  mm + ":" + ss;
+	$("#slidertext").html (progressmmss);
+	drawslider (progress);
+
+	if (progress >=100) {
+		clearTimeout(mainTimeout);
+		checkNewTrack();
+	}
+}
+
+function checkNewTrack(){
+	$.getJSON("/query=@status@"+Math.random(), function(resp) {
+		if (resp.status != "playing") {
+			setTimeout (location.reload(true), 500);
+		}
+		else {
+			if (resp.start == startTime) {
+				setTimeout ("checkNewTrack()", 500);
+			}
+			else {
+				startTime = resp.start;
+				$("#artist").html(resp.artist);
+				$("#album").html(resp.album);
+				$("#track").html(resp.track + ": " + resp.title);
+				$("#stoptime").html(resp.durationTxt);
+				trackDuration = resp.duration;
+				enableButton("skip");
+				synchronise();
+			}
+		}
+	});
+}
+
+function checkStopped() {
+	$.getJSON("/query=@status@"+Math.random(), function(resp) {
+		if (resp.status != "playing") {
+			setTimeout (location.reload(true), 500);
+		}
+		else {
+			setTimeout ("checkStopped()", 500);
+		}
+	});
+}
+
+function enableButton(name) {
+	$("#"+name).css("background-color", "d8d8f0");
+	active[name] = false;
+}
+
+function disableButton(name) {
+	$("#"+name).css("background-color", "ddd");
+	active[name] = true;
+}
+
+function skiptrack(){
+	if (!active["skip"]) {
+		clearTimeout(mainTimeout);
+		disableButton("skip");
+		$.get("/cmd=@skip_track@", checkNewTrack());
+	}
+}
+
+function stop(){
+	if (!active["stop"]) {
+		clearTimeout(mainTimeout);
+		disableButton("stop");
+		$.get("/cmd=@shut_down@", checkStopped());
+	}
+}
+
+function drawslider(percent){
+	$("#sliderbar").css ("width", percent+'%');
+}
+	
+</script>
+<link rel="stylesheet" type="text/css" href="load=@playcss@">
+</head>
+<body onload="start()">
+<h2 id="artist">@@ARTIST_NAME@@</h2>
+<h3 id="album">@@ALBUM_NAME@@</h3>
+<h4 id="track">@@TRACK_NUMBER@@: @@TRACK_NAME@@</h4>
+<div id="pcontainer">
+	<div id="progress">
+		<div id="slider">
+			<div id="stoptime">@@TRACK_DURATION_TXT@@</div>	
+			<div id="starttime">0:00</div>
+			<div id="sliderbar"></div>
+			<div id="slidertext">0:00</div>
+		</div>
+	</div>
+</div>
+<div style="display:block">
+	<div class="controlbutton"><a href="#" class="fill" id="pause"><img src="load=@pauseicon@"></a></div>
+	<div class="controlbutton"><a href="#" onclick="skiptrack()" class="fill" id="skip"><img src="load=@nexticon@"></a></div>
+	<div class="controlbutton"><a href="#" onclick="stop()" class="fill" id="stop"><img src="load=@stopicon@"></a></div>
+</div>
+</body>
+</html>
