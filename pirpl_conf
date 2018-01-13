@@ -37,7 +37,7 @@ resources["stepforwardicon"]="$PIFM_BASE/resources/media-step-forward-4x.png"
 mimetypes["stepforwardicon"]="image/png"
 
 
-PIFM_BINARY="/home/naich/PiFMRDS-Extra/src/pi_fm_rds"
+PIFM_BINARY="$PIFM_BASE/pifm"
 PIRPL_SERVER="$PIFM_BASE/pirpl_server.sh"
 WEB_FILE="$PIFM_BASE/pirpl_web.html" # Web page to be output
 WEB_INFO="$PIFM_BASE/pirpl_info.txt" # Info for the web server
