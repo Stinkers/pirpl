@@ -62,7 +62,7 @@ while [[ $argc > 0 ]]; do
 		if [[ -e /proc/$kp_pid ]]; then
 			kill -15 $kp_pid
 		else
-			(( argc-- ))
+			: "$((argc--))"
 		fi
 	done
 	if [[ $argc > 0 ]]; then 
@@ -75,7 +75,7 @@ done
 # Called on CTRL-C or SIGINT.  Turns things off nicely and cleans up.
 function shutdown
 {
-echo Shutting down...
+if [[ $DEBUG == "true" ]]; then logger "$0: Shutting down..."; fi
 
 kill $server_pid
 cleanup
@@ -85,7 +85,7 @@ exit 0
 function cleanup
 {
 # Shutdown the transmitter
-$PIFM_BINARY &>/dev/null
+$PIFM_BINARY -cw off &>/dev/null
 
 # Clean up the temporary files
 rm $TMPNAME.* 2>/dev/null
@@ -104,7 +104,7 @@ function init_playlist
 	local plfile=$2
 	local plstat=$3
 	local flags=$4
-	echo init playlist: $path, $plfile, $plstat, $flags
+	if [[ $DEBUG == "true" ]]; then logger "init playlist: $path, $plfile, $plstat, $flags"; fi
 
 	if [[ -d $path ]]; then
 		find "$path" -name "*.mp3" 2>/dev/null | sort >"$plfile"
@@ -114,14 +114,16 @@ function init_playlist
 
 	if [[ $flags =~ .*s.* ]]; then
 		pltemp="$(mktemp $TMPNAME.XXXXXX)"
+
 		sort -R <"$plfile" >"$pltemp"
 		mv -f "$pltemp" "$plfile"
 		rm "$pltemp" 2>/dev/null
 	fi
 
 	playlistsize=$(wc -l "$plfile" | cut -f1 -d " " )
+
 	if [[ $playlistsize -eq 0 ]]; then
-		logger "$0: No tracks in playlist $playlist"
+		logger "$0: No tracks in playlist: $path"
 		return 1
 	fi
 
@@ -182,7 +184,8 @@ function play
 {
 path=$1
 flags=$2
-# echo playing $1
+
+if [[ $DEBUG == "true" ]]; then logger "$0: playing $path"; fi
 
 if [[ ! -e "$PIRPL_TEMPLATE" ]]; then
 	logger "$0: Missing template file $PIRPL_TEMPLATE"
@@ -208,10 +211,11 @@ readarray -t tracks < "$plfile"
 
 # Get status of playlist
 readarray -t status < "$plstatus"
-totaltracks=${status[1]}
-trackpos=${status[2]}
-trackstart=${status[3]}
-trimtrack=${status[4]}
+
+totaltracks=$([ ! -z ${status[1]:-} ] && echo "${status[1]}" || echo 0)
+trackpos=$([ ! -z ${status[2]:-} ] && echo "${status[2]}" || echo 0)
+trackstart=$([ ! -z ${status[3]:-} ] && echo "${status[3]}" || echo 0)
+trimtrack=$([ ! -z ${status[4]:-} ] && echo "${status[4]}" || echo "")
 trimcheck=0
 
 while [[ $trackpos -lt $totaltracks ]]; do
@@ -226,7 +230,7 @@ while [[ $trackpos -lt $totaltracks ]]; do
 		trimcheck=1
 	fi
 
-	echo $trackpos : $mp3track
+	if [[ $DEBUG == "true" ]]; then logger "$0: $trackpos : $mp3track"; fi
 
 	if [[ -e "$mp3track" ]]; then
 
@@ -288,7 +292,7 @@ while [[ $trackpos -lt $totaltracks ]]; do
 		fi
 
 		# Play the track in the background
-		sox "$mp3track" $SOX_ARGS -t wav - channels 1 rate 22050 vol 1 | $PIFM_BINARY - $PIFM_FREQUENCY &
+		sox "$mp3track" $SOX_ARGS -t wav - vol 1 | $PIFM_BINARY -preemph eu -freq $PIFM_FREQUENCY -audio - -ps WibbleFM -ag 4 -cw on &
 		pifm_pid=$!
 
 		# Keep polling for commands or the end of the mp3
@@ -319,7 +323,7 @@ while [[ $trackpos -lt $totaltracks ]]; do
 	else
 		logger "$0: Can't find $mp3track"
 	fi # If mp3 exists
-	((trackpos++))
+	: "$((trackpos++))"
 	trackstart=0
 done
 
@@ -333,6 +337,17 @@ cleanup
 
 function makeplaylist
 {
+if [[ ! -e "$PLAYLIST_TEMPLATE" ]]; then
+	logger "$0: Playlist template $PLAYLIST_TEMPLATE does not exist"
+	shutdown
+fi
+
+if [[ ! -e "$PLAYLIST_CONF" ]]; then
+	logger "$0: Can't populate playlist - $PLAYLIST_CONF does not exist"
+	shutdown
+
+fi
+	
 playlist_template="$(<"$PLAYLIST_TEMPLATE")"
 prelist=$(expr "$playlist_template" : '^\(.*\)@@P_START@@')
 postlist=$(expr "$playlist_template" : '.*@@P_END@@\(.*\)')
@@ -342,35 +357,59 @@ list_out=""
 id=0
 while IFS=":" read -ra playlist_line; do
 
-	playlist_path=${playlist_line[0]}
-	playlist_name=${playlist_line[1]}
-	playlist_flags=${playlist_line[2]}
-	playlist_tracks=${playlist_line[3]}
+	# Yes, this looks shit. Blame Bash and my laziness. I'll do it properly later.
+	if [[ ! -z "${playlist_line:-}" ]]; then	
+		if [[ "${playlist_line:0:1}" != "#" ]]; then
+			if [[ ${#playlist_line[@]} -eq 4 || ${#playlist_line[@]} -eq 3 ]]; then
 
-	if [[ ${playlist_line:0:1} != "#" && -n "$playlist_name" ]]; then
-
-		# Make playlist for template
-		list="${list_template//@@P_ID@@/$id}"
-		list="${list//@@PLAYLIST@@/$playlist_name}"
-		list="${list//@@PLAYLIST_TRACKS@@/$playlist_tracks}"
-
-		if [[ -e "$PLAYLIST_LOCATION/$(gethash $playlist_path).lock" ]]; then
-			list="${list//@@showstepnext@@/display: inline;}"
-			list="${list//@@showplay@@/display: none;}"
-		else
-			list="${list//@@showstepnext@/display: none;}"
-			list="${list//@@showplay@@/display: inline;}"
-		fi
+				if [[ ! -z "${playlist_line[0]:-}" ]]; then 
+					playlist_path=${playlist_line[0]}
+				else
+					playlist_path="/dev/null"
+				fi
+				if [[ ! -z "${playlist_line[1]:-}" ]]; then 
+					playlist_name=${playlist_line[1]}
+				else
+					playlist_name="Unknown"
+				fi
+				if [[ ! -z "${playlist_line[2]:-}" ]]; then 
+					playlist_flags=${playlist_line[2]}
+				else
+					playlist_flags=""
+				fi
+				if [[ ! -z "${playlist_line[3]:-}" ]]; then 
+					playlist_tracks=${playlist_line[3]}
+				else
+					playlist_tracks=""
+				fi
 	
-		if [[ $playlist_flags =~ .*s.* ]]; then
-			rand_flag="random"
-		else
-			rand_flag="ordered"
-		fi
-		list="${list//@@RANDOM_FLAG@@/$rand_flag}"
-		list_out=$list_out$list
+				# Make playlist for template
+				list="${list_template//@@P_ID@@/$id}"
+				list="${list//@@PLAYLIST@@/$playlist_name}"
+				list="${list//@@PLAYLIST_TRACKS@@/$playlist_tracks}"
 
-		(( id++ ))
+				if [[ -e "$PLAYLIST_LOCATION/$(gethash $playlist_path).lock" ]]; then
+					list="${list//@@showstepnext@@/display: inline;}"
+					list="${list//@@showplay@@/display: none;}"
+				else
+					list="${list//@@showstepnext@/display: none;}"
+					list="${list//@@showplay@@/display: inline;}"
+				fi
+		
+				if [[ $playlist_flags =~ .*s.* ]]; then
+					rand_flag="random"
+				else
+					rand_flag="ordered"
+				fi
+				list="${list//@@RANDOM_FLAG@@/$rand_flag}"
+				list_out=$list_out$list
+
+				# This little doozy took me a while to find. ((id++)) returns 0 for the first iteration
+				# which is interpreted by bash "strict mode" as an error, so it just quits silently.
+				# Why am I doing this in Bash????
+				: "$((id++))" 
+			fi
+		fi
 	fi
 done <"$PLAYLIST_CONF"
 
@@ -394,8 +433,12 @@ if [[ ! -e "$PLAYLIST_TEMPLATE" ]]; then
 	exit 1
 fi
 
-socat TCP4-LISTEN:$SERVER_PORT,reuseaddr,fork EXEC:"$PIRPL_SERVER $PIRPL_CONF",fdin=3,fdout=4 &
+if [[ "$DEBUG" == "true" ]]; then socatdebug=""; else socatdebug=""; fi
+
+socat $socatdebug TCP4-LISTEN:$SERVER_PORT,reuseaddr,fork EXEC:"$PIRPL_SERVER $PIRPL_CONF >/dev/null" &
 server_pid=$!
+
+if [[ "$DEBUG" == "true" ]]; then logger "$0: Starting pirpl..."; fi
 
 # Creates the list of playlists for the web server and waits for the command
 # to start playing one of them.
@@ -406,21 +449,28 @@ while [[ 1 ]]; do
 	id=0
 	while IFS=":" read -ra playlist_line; do
 
-		playlist_path=${playlist_line[0]}
-		playlist_name=${playlist_line[1]}
-		playlist_flags=${playlist_line[2]}
+		# Todo: sort this shit out.
+		if [[ ! -z "${playlist_line:-}" ]]; then	
+			if [[ "${playlist_line:0:1}" != "#" ]]; then
+				if [[ ${#playlist_line[@]} -eq 4 || ${#playlist_line[@]} -eq 3 ]]; then
+					playlist_path=${playlist_line[0]}
+					playlist_name=${playlist_line[1]}
+					playlist_flags=${playlist_line[2]}
 
-		if [[ ${playlist_line:0:1} != "#" && -n "$playlist_name" ]]; then
-			# Populate internal data
-			paths[$id]="$playlist_path"
-			flags[$id]=$playlist_flags
-			(( id++ ))
+					# Populate internal data
+					paths[$id]="$playlist_path"
+					flags[$id]=$playlist_flags
+					: "$((id++))" # Lol.
+				fi
+			fi
 		fi
 	done <"$PLAYLIST_CONF"
 	
 	statusJSON="{ \"status\": \"stopped\" }"
 	rm "$WEB_INFO" 2>/dev/null
 	echo "$statusJSON" > "$WEB_INFO"
+
+	if [[ $DEBUG == "true" ]]; then logger "$0: Playlists read, waiting for a command..."; fi
 
 	# Wait for a command.  The web server writes the commands to $CMD_FILE
 	done=0
@@ -429,7 +479,7 @@ while [[ 1 ]]; do
 		if [[ -e "$CMD_FILE" ]]; then
 			command=$(<"$CMD_FILE")
 			rm "$CMD_FILE" 2>/dev/null
-			# Playlist selected
+
 			if [[ "$command" == playlist* ]]; then
 				play_id=$(expr "$command" : '.*playlist:\([0-9]*\).*')
 				play "${paths[$play_id]}" ${flags[$play_id]} 2>/dev/null
@@ -454,12 +504,12 @@ while [[ 1 ]]; do
 				local i=0
 				for statline in "${statfile[@]}"; do
 					statfile[$i]=$(echo -e $statline | sed -e 's/^[[:cntrl:]]*//')
-					(( i++ ))
+					: "$((i++))"
 				done
 				
 				# Move to the next track or rewind to the start if it's at the end
 				if [[ "${statfile[2]}" -lt "${statfile[1]}" ]]; then
-					(( statfile[2]++ ))
+					: "$((statfile[2]++))"
 				else
 					statfile[2]=0
 				fi
@@ -474,6 +524,7 @@ while [[ 1 ]]; do
 		else
 			sleep 1
 		fi
-	done
+	done # Exits when playlist is finished
 	
 done	# Main loop never exits
+

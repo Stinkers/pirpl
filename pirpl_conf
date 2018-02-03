@@ -2,7 +2,7 @@
 # probably only want to do the first 3.
 
 # Change these lines to match your system and preferences
-PIFM_FREQUENCY="105.0" # Transmitter frequency
+PIFM_FREQUENCY="107.3" # Transmitter frequency
 PIFM_BASE="/home/naich/pirpl" # Directory this was installed in
 SERVER_PORT="8081" # Point your browser to http://your_pi_ip:8080
 
@@ -37,7 +37,7 @@ resources["stepforwardicon"]="$PIFM_BASE/resources/media-step-forward-4x.png"
 mimetypes["stepforwardicon"]="image/png"
 
 
-PIFM_BINARY="$PIFM_BASE/pifm"
+PIFM_BINARY="/home/naich/pi/PiFMRDS-Extra/pi_fm_rds"
 PIRPL_SERVER="$PIFM_BASE/pirpl_server.sh"
 WEB_FILE="$PIFM_BASE/pirpl_web.html" # Web page to be output
 WEB_INFO="$PIFM_BASE/pirpl_info.txt" # Info for the web server

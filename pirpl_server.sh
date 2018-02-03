@@ -25,7 +25,7 @@
 # behind a firewall or on a port that is only accessible from an internal
 # network.
 
-if [[ "$1" = "" || ! -f "$1" ]]; then
+if [[ -z "${1:-}" || "$1" == "" || ! -f "$1" ]]; then
 	echo "Usage: $0 <config file>"
 	exit 1
 	fi
@@ -33,10 +33,16 @@ PIRPL_SERVER_CONF="$1"
 
 . "$PIRPL_SERVER_CONF"
 
+# if [[ "$DEBUG" == "true" ]]; then logger "pirpl web server accessed..."; fi
+
 # Get the request from the browser.  socat is set up for fd3=in, fd4=out
-while read -r -u 3 line; do
-	if [[ $line = *[^[:cntrl:]]* ]]; then
-		if [[ ${line:0:4} = "GET " ]]; then
+request=""
+while read -r -t 5 line; do
+
+#	if [[ "$DEBUG" == "true" ]]; then logger "$0: Parsing - $line"; fi
+	if [[ ! -z "${line:-}" && $line == *[^[:cntrl:]]* ]]; then
+
+		if [[ ${line:0:4} == "GET " ]]; then
 			request=$(expr "$line" : 'GET /\(.*\) HTTP.*')
 		fi
 	else
@@ -45,50 +51,60 @@ while read -r -u 3 line; do
 done
 
 # Send back headers for reply
-printf "HTTP/1.1 200 OK\r\n" 1>&4
+printf "HTTP/1.1 200 OK\n"
 
-command=$(expr "$request" : '\(.*\)=.*')
+if [[ -z "${request:-}" ]]; then 
+	command="page"; 
+else
+	command=$(expr "$request" : '\(.*\)=.*')
+fi
+
+if [[ "$DEBUG" == "true" ]]; then logger "$0: Request: $request"; fi
+
 case $command in
 
 load)
 	# Send a file - resources specified in pirpl_conf
 	loadfile=$(expr "$request" : '.*load=@\(.*\)@.*')	
 	if [[ "${resources[$loadfile]}" != "" ]]; then
-		printf "Content-Type: ${mimetypes[$loadfile]}\r\n\r\n" 1>&4
-		cat ${resources[$loadfile]} 1>&4
+		printf "Content-Type: ${mimetypes[$loadfile]}\n\n"
+		cat ${resources[$loadfile]}
 	else
-		printf "Content-Type: text/html\r\n\r\n" 1>&4
-		printf "<html>Resource not found</html>\r\n" 1>&4
+		printf "Content-Type: text/html\n\n"
+		printf "<html>Resource not found</html>\n"
 	fi
 ;;
 
 query) 
-	printf "Content-Type: application/json\r\n\r\n" 1>&4
+	printf "Content-Type: application/json\n\n"
 	query=$(expr "$request" : '.*query=@\(.*\)@.*')
 
 	if [[ "$query" = "timenow" ]]; then
-		echo "{ \"timenow\": "`date +"%s"`" }" 1>&4 
+		echo "{ \"timenow\": "`date +"%s"`" }"
 	fi
 	if [[ "$query" = "status" ]]; then
-		cat "$WEB_INFO" 1>&4
+		cat "$WEB_INFO"
 	fi
 ;;
 
 cmd)
-	printf "Content-Type: text/html\r\n\r\n" 1>&4
+	printf "Content-Type: text/html\n\n"
 	# Send any commands to the player
 	cmd=$(expr "$request" : '.*cmd=@\(.*\)@.*')
 	rm "$CMD_FILE" 2>/dev/null
 	echo "$cmd" > "$CMD_FILE"
 ;;
 
-*)
-	printf "Content-Type: text/html\r\n\r\n" 1>&4
+page | *)
+	printf "Content-Type: text/html\n\n"
+
 	# If it's not a command send back the web page
 	if [[ -e "$WEB_FILE" ]]; then
-		cat "$WEB_FILE" 1>&4
+		cat "$WEB_FILE"
 	else
-		echo "Error.  Pirpl doesn't seem to be running." 1>&4
+		logger "$0: Server can't find web page."
+		echo "Error.  Pirpl doesn't seem to be running."
 	fi
 ;;
 esac 
+
