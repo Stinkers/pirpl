@@ -2,16 +2,9 @@
 
 # To do list:
 # 
-# 1a. Add a "status" field to template. 
-# 5.  Add mpfinfo files to directories with volume info etc.
-# 8.  Prettify playlist chooser.
-
-# New functions: 
-#    "Play" resumes playing according to status file. If no status file then:
-#    "Restart" Creates playlist (flag for random) and intial status file.
-# New file structure:
-#    <md5 of playlist location>.dat : Playlist
-#    <md5 of playlist location>.stat : Playlist status
+# 2. Add a "status" field to template. 
+# 3.  Add mpfinfo files to directories with volume info etc.
+# 1.  Add streaming of internet radio
 
 if [[ "$1" = "-h" ||  "$1" = "--help" ]]; then
 	cat <<EOF
@@ -354,7 +347,7 @@ list_template=$(expr "$playlist_template" : '.*@@P_START@@\(.*\)@@P_END@@.*')
 
 list_out=""
 id=0
-while IFS=":" read -ra playlist_line; do
+while IFS="*" read -ra playlist_line; do
 
 	# Yes, this looks shit. Blame Bash and my laziness. I'll do it properly later.
 	if [[ ! -z "${playlist_line:-}" ]]; then	
@@ -446,7 +439,7 @@ while [[ 1 ]]; do
 	makeplaylist
 
 	id=0
-	while IFS=":" read -ra playlist_line; do
+	while IFS="*" read -ra playlist_line; do
 
 		# Todo: sort this shit out.
 		if [[ ! -z "${playlist_line:-}" ]]; then	
@@ -456,9 +449,11 @@ while [[ 1 ]]; do
 					playlist_name=${playlist_line[1]}
 					playlist_flags=${playlist_line[2]}
 
+					if [[ $DEBUG == "true" ]]; then logger "$0: $id-$playlist_path*$playlist_name*$playlist_flags"; fi
+
 					# Populate internal data
 					paths[$id]="$playlist_path"
-					flags[$id]=$playlist_flags
+					flags[$id]="$playlist_flags"
 					: "$((id++))" # Lol.
 				fi
 			fi
@@ -483,7 +478,7 @@ while [[ 1 ]]; do
 				play_id=$(expr "$command" : '.*playlist:\([0-9]*\).*')
 				play "${paths[$play_id]}" ${flags[$play_id]} 2>/dev/null
 				done=1
-			fi				
+			fi
 			if [[ "$command" == stepnext* ]]; then
 				play_id=$(expr "$command" : '.*stepnext:\([0-9]*\).*')
 				hashname="$PLAYLIST_LOCATION/$(gethash ${paths[play_id]})"
