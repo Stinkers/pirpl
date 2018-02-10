@@ -291,7 +291,7 @@ while [[ $trackpos -lt $totaltracks ]]; do
 		fi
 
 		# Play the track in the background
-		sox "$mp3track" -t wav - $SOX_FILTER | $PIFM_BINARY -freq $PIFM_FREQUENCY -audio - -ps "$PIFM_NAME" -rt "$PIFM_RTEXT" $PIFM_FLAGS -cw on &
+		sox "$mp3track" $SOX_ARGS -t wav - $SOX_FILTER | $PIFM_BINARY -freq $PIFM_FREQUENCY -audio - -ps "$PIFM_NAME" -rt "$PIFM_RTEXT" $PIFM_FLAGS -cw on &
 		pifm_pid=$!
 
 		# Keep polling for commands or the end of the mp3
@@ -500,7 +500,7 @@ while [[ 1 ]]; do
 
 				readarray statfile <"$statname"
 				
-				local i=0
+				i=0
 				for statline in "${statfile[@]}"; do
 					statfile[$i]=$(echo -e $statline | sed -e 's/^[[:cntrl:]]*//')
 					: "$((i++))"
