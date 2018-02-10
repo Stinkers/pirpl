@@ -163,7 +163,6 @@ function trim_track
 	echo $sox_pid > "$pllock"
 	wait $sox_pid
 
-	echo done trimming
 	rm "$pllock" 2>/dev/null
 
 	# Update the web page now it's finished
@@ -292,7 +291,7 @@ while [[ $trackpos -lt $totaltracks ]]; do
 		fi
 
 		# Play the track in the background
-		sox "$mp3track" $SOX_ARGS -t wav - vol 1 | $PIFM_BINARY -preemph eu -freq $PIFM_FREQUENCY -audio - -ps WibbleFM -ag 4 -cw on &
+		sox "$mp3track" -t wav - $SOX_FILTER | $PIFM_BINARY -freq $PIFM_FREQUENCY -audio - -ps "$PIFM_NAME" -rt "$PIFM_RTEXT" $PIFM_FLAGS -cw on &
 		pifm_pid=$!
 
 		# Keep polling for commands or the end of the mp3

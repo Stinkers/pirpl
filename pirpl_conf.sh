@@ -3,13 +3,21 @@
 
 # Change these lines to match your system and preferences
 PIFM_FREQUENCY="107.3" # Transmitter frequency
+PIFM_FLAGS="-preemph eu -ag 4" # EU pre-emphasis, gain of 2
+PIFM_NAME="WibbleFM" # Station name, 8 chars
+PIFM_RTEXT="Add some Wibble to your life" # Radio text, 64 chars
 PIFM_BASE="/home/naich/pirpl" # Directory this was installed in
 SERVER_PORT="8081" # Point your browser to http://your_pi_ip:8080
 
 # Other arguments to pass to SOX, e.g.
 # SOX_ARGS="compand 0.3,0.8 6:-70,-60,-20 -11 -90 0.2"
 # SOX_ARGS="--norm"
-SOX_ARGS=""
+SOX_FILTER="vol 1 loudness"
+
+DEBUG="true"
+# DEBUG="false"
+
+set -u
 
 # The rest can be left as defaults unless you want to change them
 
@@ -37,7 +45,8 @@ resources["stepforwardicon"]="$PIFM_BASE/resources/media-step-forward-4x.png"
 mimetypes["stepforwardicon"]="image/png"
 
 
-PIFM_BINARY="/home/naich/pi/PiFMRDS-Extra/pi_fm_rds"
+# PIFM_BINARY="/home/naich/pi/PiFMRDS-Extra/pi_fm_rds"
+PIFM_BINARY="/home/naich/PiFMRDS-Extra/src/pi_fm_rds" # pifm binary
 PIRPL_SERVER="$PIFM_BASE/pirpl_server.sh"
 WEB_FILE="$PIFM_BASE/pirpl_web.html" # Web page to be output
 WEB_INFO="$PIFM_BASE/pirpl_info.txt" # Info for the web server
