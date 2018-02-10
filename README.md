@@ -14,4 +14,6 @@ Sure, why not? If you hate yourself enough.
 2. sox
 3. id3v2
 4. mp3info
-5. A masochistic streak a mile wide
+5. socat
+6. A masochistic streak a mile wide
+
