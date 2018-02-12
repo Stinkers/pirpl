@@ -1,6 +1,7 @@
 Pirpl - Pi Radio Playlist
 =========================
 ## What is it?
+<img style="float: right;" src="https://github.com/Stinkers/pirpl/raw/master/resources/screen.png">
 Pirpl is a Web-interfaced controlled, playlist-based pirate radio jukebox type thing. Create playlists yourself or just point it to a directory containing MP3s and it'll recursively scan it to create a playlist from them.  Playlists can be shuffled.
 
 **Now with streaming of internet radio stations!** Just put the URL of the "m3u" instead of the path and the flag is the gain for that station.
