@@ -11,7 +11,7 @@ It started as a simple script to just play all the tracks in a directory, but it
 ## Why don't you stop doing it and write it in a more suitable language?
 Basically, [Stockholm Syndome](https://en.wikipedia.org/wiki/Stockholm_syndrome). I'm starting to like Bash.
 ## Is it ready to use?
-Sure, why not? If you hate yourself enough.
+Sure, why not? If you hate yourself enough. Realistically, unless you want to help me squash bugs then you are better off waiting until it's a bit more friendly to set up.
 ## Requirements
 1. piFMRDS-Extra
 2. sox
