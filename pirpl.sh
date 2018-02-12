@@ -99,6 +99,12 @@ function init_playlist
 	local flags=$4
 	if [[ $DEBUG == "true" ]]; then logger "init playlist: $path, $plfile, $plstat, $flags"; fi
 
+	# Check for a streaming URL
+	if [[ $path =~ ^https?://.* ]]; then 
+		write_status "$plstat" -1 0 0	# Size of -1 means streaming
+		return 0
+	fi
+
 	if [[ -d $path ]]; then
 		find "$path" -name "*.mp3" 2>/dev/null | sort >"$plfile"
 	else
@@ -165,6 +171,47 @@ function trim_track
 	echo "$trimtrack" >> "$plstat"	
 }
 
+# play_stream <url> <gain>
+# 
+# Streams the URL at "gain" volume
+#
+# Todo: Refactor this shit.
+function play_stream
+{
+url=$1
+gain=$2
+name=$3
+
+template="$(<"$STREAM_TEMPLATE")"
+out_template="${template//@@STREAM_URL@@/$url}"
+out_template="${out_template//@@STREAM_NAME@@/$name}"
+
+statusJSON="{ \"artist\":\"$url\", \"album\":\"[na]\", \"track\":\"[na]\", \"title\":\"[na]\", \"duration\":\"[na]\", \"start\":\"[na]\", \"durationTxt\": \"[na]\", \"status\": \"playing\" }"
+
+rm "$WEB_FILE" 2>/dev/null
+echo "$out_template" > "$WEB_FILE"
+rm "$WEB_INFO" 2>/dev/null
+echo "$statusJSON" > "$WEB_INFO"
+
+sox --volume $gain -t mp3 $url -t wav - | $PIFM_BINARY -freq $PIFM_FREQUENCY -audio - -ps "$PIFM_NAME" -rt "$PIFM_RTEXT" $PIFM_FLAGS -cw on &
+pifm_pid=$!
+
+# Keep polling for commands or the end of the mp3
+while [ -e /proc/$pifm_pid ]; do
+	sleep 3		# Not checking for individual tracks so this can be longer than the other one
+
+	# Check for commands from the web server
+	if [[ -e "$CMD_FILE" ]]; then
+		command=$(<"$CMD_FILE")
+		rm "$CMD_FILE" 2>/dev/null
+			
+		if [[ "$command" == "shut_down" ]]; then
+			kill_processes $pifm_pid
+		fi
+	fi
+done
+}
+
 # play <path> <flags> 
 #   path: Path to playlist or directory containing MP3s
 #   flags: s - shuffle
@@ -176,8 +223,7 @@ function play
 {
 path=$1
 flags=$2
-
-if [[ $DEBUG == "true" ]]; then logger "$0: playing $path"; fi
+name=$3
 
 if [[ ! -e "$PIRPL_TEMPLATE" ]]; then
 	logger "$0: Missing template file $PIRPL_TEMPLATE"
@@ -189,17 +235,11 @@ plfile="$plhash.dat"
 plstatus="$plhash.stat"
 pllock="$plhash.lock"
 
-if [[ ! -e "$plstatus" || ! -e "$plfile" ]]; then
+# Create an initial status file if one doesn't exist
+if [[ ! -e "$plstatus" ]]; then
 	init_playlist "$path" "$plfile" "$plstatus" $flags
-	if [[ $? -eq 1 ]]; then
-		return 1
-	fi
+	if [[ $? -eq 1 ]]; then return 1; fi
 fi
-
-template="$(<"$PIRPL_TEMPLATE")"
-
-# Import playlist
-readarray -t tracks < "$plfile"
 
 # Get status of playlist
 readarray -t status < "$plstatus"
@@ -209,6 +249,22 @@ trackpos=$([ ! -z ${status[2]:-} ] && echo "${status[2]}" || echo 0)
 trackstart=$([ ! -z ${status[3]:-} ] && echo "${status[3]}" || echo 0)
 trimtrack=$([ ! -z ${status[4]:-} ] && echo "${status[4]}" || echo "")
 trimcheck=0
+
+if [[ $totaltracks -eq -1 ]]; then 
+	if [[ $DEBUG == "true" ]]; then logger "$0: Streaming $path"; fi
+	play_stream $path $flags "$name"
+
+	# Clean up temp files and shut down the transmitter
+	cleanup
+	return 0
+fi
+
+if [[ $DEBUG == "true" ]]; then logger "$0: playing $path"; fi
+
+template="$(<"$PIRPL_TEMPLATE")"
+
+# Import playlist
+readarray -t tracks < "$plfile"
 
 while [[ $trackpos -lt $totaltracks ]]; do
 
@@ -454,6 +510,7 @@ while [[ 1 ]]; do
 					# Populate internal data
 					paths[$id]="$playlist_path"
 					flags[$id]="$playlist_flags"
+					names[$id]="$playlist_name"
 					: "$((id++))" # Lol.
 				fi
 			fi
@@ -476,7 +533,8 @@ while [[ 1 ]]; do
 
 			if [[ "$command" == playlist* ]]; then
 				play_id=$(expr "$command" : '.*playlist:\([0-9]*\).*')
-				play "${paths[$play_id]}" ${flags[$play_id]} 2>/dev/null
+
+				play "${paths[$play_id]}" ${flags[$play_id]} "${names[$play_id]}" 2>/dev/null
 				done=1
 			fi
 			if [[ "$command" == stepnext* ]]; then
