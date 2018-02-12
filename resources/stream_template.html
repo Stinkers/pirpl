@@ -1,0 +1,75 @@
+<html>
+<!-- 
+  Template for pirpl track info.  Edit this to make it look prettier.  
+  The following strings are replaced with the relevant info:
+  
+  @@ARTIST_NAME@@
+  @@ALBUM_NAME@@
+  @@TRACK_NUMBER@@
+  @@TRACK_NAME@@
+  @@START_TIME@@         - Timestamp of the start time (local to pi)
+  @@TRACK_DURATION@@     - Track duration in seconds
+  @@TRACK_DURATION_TXT@@ - Track duration in MM:SS
+-->
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pirpl Streaming Info</title>
+<script src="load=@jquery@"></script>
+
+<script type="text/javascript">
+
+var control = new XMLHttpRequest();
+var shutdownId, mainTimeout;
+var active = [];
+active ["stop"] = false;
+
+// Was going to do this with jQuery, but it didn't work properly with
+// mobile phone sleeping through 2 songs.
+function start(){
+
+checkStopped();
+}
+
+
+function checkStopped() {
+	$.getJSON("/query=@status@"+Math.random(), function(resp) {
+		if (resp.status != "playing") {
+			setTimeout (location.reload(true), 500);
+		}
+		else {
+			setTimeout ("checkStopped()", 500);
+		}
+	});
+}
+
+function enableButton(name) {
+	$("#"+name).css("background-color", "d8d8f0");
+	active[name] = false;
+}
+
+function disableButton(name) {
+	$("#"+name).css("background-color", "ddd");
+	active[name] = true;
+}
+
+function stop(){
+	if (!active["stop"]) {
+		clearTimeout(mainTimeout);
+		disableButton("stop");
+		$.get("/cmd=@shut_down@", checkStopped());
+	}
+}
+
+</script>
+<link rel="stylesheet" type="text/css" href="load=@playcss@">
+</head>
+<body onload="start()">
+<h2 id="description">Streaming</h2>
+<h3 id="stream">@@STREAM_NAME@@</h3>
+<h5 id="url">@@STREAM_URL@@</h4>
+<hr>
+<div style="display:block">
+	<div class="controlbutton"><a href="#" onclick="stop()" class="fill" id="stop"><img src="load=@stopicon@"></a></div>
+</div>
+</body>
+</html>
